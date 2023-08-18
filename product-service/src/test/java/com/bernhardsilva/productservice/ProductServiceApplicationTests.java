@@ -1,8 +1,8 @@
 package com.bernhardsilva.productservice;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.math.BigDecimal;
+import com.bernhardsilva.productservice.dto.ProductRequest;
+import com.bernhardsilva.productservice.repository.ProductRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -16,57 +16,50 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-import com.bernhardsilva.productservice.dto.ProductRequest;
-import com.bernhardsilva.productservice.repository.ProductRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@Testcontainers
 @AutoConfigureMockMvc
 class ProductServiceApplicationTests {
 
-	@Container
-	static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4.2")
-			.withExposedPorts(27017);
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4.2");
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private ProductRepository productRepository;
 
-	@Autowired
-	private MockMvc mockMvc;
+    static {
+        mongoDBContainer.start();
+    }
 
-	@Autowired
-	private ObjectMapper objectMapper; // convert obj to json and viceversa
-
-	@Autowired
-	private ProductRepository productRepository;
-
-	@DynamicPropertySource
+    @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry dymDynamicPropertyRegistry) {
         dymDynamicPropertyRegistry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
     }
 
-	static {
-        mongoDBContainer.start();
+    @Test
+    void shouldCreateProduct() throws Exception {
+        ProductRequest productRequest = getProductRequest();
+        String productRequestString = objectMapper.writeValueAsString(productRequest);
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/product")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productRequestString))
+                .andExpect(status().isCreated());
+        Assertions.assertEquals(1, productRepository.findAll().size());
     }
 
-	@Test
-	void shouldCreateProduct() throws Exception {
-		ProductRequest productRequest = getProductRequest();
-		String productRequestString = objectMapper.writeValueAsString(productRequest);
-		mockMvc.perform(MockMvcRequestBuilders.post("/api/product")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(productRequestString))
-				.andExpect(status().isCreated());
-		Assertions.assertEquals(1, productRepository.findAll().size());
-	}
-
-	private ProductRequest getProductRequest() {
-		return ProductRequest.builder()
-				.name("Motorbyke Shoes")
-				.description("Motorbyke Shoes Size 43")
-				.price(BigDecimal.valueOf(100))
-				.build();
-
-	}
+    private ProductRequest getProductRequest() {
+        return ProductRequest.builder()
+                .name("iPhone 13")
+                .description("iPhone 13")
+                .price(BigDecimal.valueOf(1200))
+                .build();
+    }
 
 }
